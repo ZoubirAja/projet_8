@@ -1,1 +1,5 @@
 df_final_clean.parquet
+customers_indexed.parquet
+predictions.db
+.env
+__pycache__/

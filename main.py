@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyHeader
+import gradio as gr
 import logging
 import os
 import joblib
@@ -94,3 +95,30 @@ def run_prediction(customer_df, customer_id=None):
         "probabilite_de_defaut": f"{probabilite}%",
         "resultat": resultat
     }
+
+
+def predict_for_demo(customer_id: float):
+    """Fonction appelée par l'interface Gradio (pas de clé API : démo publique)."""
+    if customer_id is None:
+        return "Renseigne un ID client (ex : 100002).", ""
+
+    customer_df = get_customer(int(customer_id))
+    if customer_df is None:
+        return "Aucun client trouvé pour cet ID.", ""
+
+    customer_df = customer_df.drop(columns=["TARGET"], errors="ignore")
+    result = run_prediction(customer_df, int(customer_id))
+    return result["resultat"], result["probabilite_de_defaut"]
+
+
+demo = gr.Interface(
+    fn=predict_for_demo,
+    inputs=gr.Number(label="ID client (SK_ID_CURR)", precision=0),
+    outputs=[gr.Textbox(label="Résultat"), gr.Textbox(label="Probabilité de défaut")],
+    title="Scoring crédit — démo",
+    description="Entre un ID client existant (ex : 100002) pour voir la prédiction du modèle. "
+                "Cette interface n'utilise pas de clé API, contrairement à /predict/{id}.",
+)
+
+# Démo accessible sur /demo, à côté des routes JSON protégées par clé API.
+app = gr.mount_gradio_app(app, demo, path="/demo")

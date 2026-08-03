@@ -1,0 +1,17 @@
+.git
+.env
+__pycache__/
+*.pyc
+tests/
+catboost_info/
+
+# Fichiers d'entraînement uniquement, pas nécessaires pour servir l'API
+df_final_clean.parquet
+config.py
+model.py
+train.py
+prepare_parquet.py
+requirements-dev.txt
+
+# Régénérée par l'API au démarrage (database.py), pas besoin de la copier
+predictions.db

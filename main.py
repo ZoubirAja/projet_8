@@ -8,6 +8,8 @@ import os
 import joblib
 
 from customer import get_customer, log_prediction
+from minio_client import download_model
+from contextlib import asynccontextmanager
 
 load_dotenv()
 
@@ -24,7 +26,23 @@ def verify_api_key(key: str = Depends(API_KEY_HEADER)):
         )
 
 
-app = FastAPI(debug=DEBUG)
+# pipeline : modèle CatBoost entraîné (train.py). seuil_optimal : seuil de décision calculé
+# via le coût métier (10x plus coûteux de rater un défaut que d'avoir une fausse alerte),
+# à utiliser à la place du seuil par défaut (0.5) de pipeline.predict().
+pipeline = seuil_optimal = score = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global pipeline, seuil_optimal, score
+    download_model()  # télécharge depuis MinIO si absent localement (image ne l'embarque plus)
+    pipeline, seuil_optimal, score = joblib.load('model.pkl')
+    yield
+
+app = FastAPI(
+    lifespan=lifespan,
+    debug=DEBUG
+)
 
 
 # Handler d'erreur global
@@ -40,12 +58,6 @@ async def global_exception_handler(_request, exc: Exception):
             status_code=500,
             content={"message": "Erreur interne du serveur"}
         )
-
-
-# pipeline : modèle CatBoost entraîné (train.py). seuil_optimal : seuil de décision calculé
-# via le coût métier (10x plus coûteux de rater un défaut que d'avoir une fausse alerte),
-# à utiliser à la place du seuil par défaut (0.5) de pipeline.predict().
-pipeline, seuil_optimal, score = joblib.load('model.pkl')
 
 
 @app.get("/", include_in_schema=False)

@@ -38,7 +38,10 @@ def _use_in_memory_database(monkeypatch):
 
 @pytest.fixture
 def client():
-    return TestClient(main.app)
+    # `with` déclenche le lifespan (download_model + joblib.load) ; sans ça,
+    # `pipeline` reste None et les prédictions plantent.
+    with TestClient(main.app) as c:
+        yield c
 
 
 @pytest.fixture

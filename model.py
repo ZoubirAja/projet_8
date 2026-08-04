@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import f1_score, roc_auc_score, recall_score
 import joblib
-
+from minio_client import upload_model
 
 # ── Fonction de coût métier (reprise du projet home-credit) ──────────
 def cout_metier(y_true, y_proba, seuil, cout_fn=10, cout_fp=1):
@@ -63,6 +63,6 @@ def predict_model(X, y, cout_fn=10, cout_fp=1):
 
     # On sauvegarde le modèle + le seuil pour l'appeler via l'API
     joblib.dump((pipeline, seuil_optimal, score), 'model.pkl')
-    #upload_model()
+    upload_model(score=score)
 
     return score, auc, recall, seuil_optimal

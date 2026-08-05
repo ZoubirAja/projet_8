@@ -3,4 +3,3 @@ customers_indexed.parquet
 predictions.db
 .env
 __pycache__/
-model.pkl

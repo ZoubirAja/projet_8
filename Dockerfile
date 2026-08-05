@@ -9,12 +9,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Données avant le code : elles changent moins souvent, le cache Docker
+# Modèle + données avant le code : ils changent moins souvent, le cache Docker
 # reconstruit rarement cette couche même si main.py/customer.py changent.
-# model.pkl n'est plus copié dans l'image : il est téléchargé depuis MinIO au démarrage
-# (voir main.py:lifespan / minio_client.download_model), ça évite de bake un binaire
-# de plusieurs centaines de Mo à chaque build et de devoir rebuild pour changer de modèle.
-COPY customers_indexed.parquet ./
+# model.pkl est baké dans l'image ici pour simplifier le déploiement (pas de dépendance
+# réseau/S3 au démarrage). En production, remplacer par un téléchargement depuis un
+# stockage S3 (MinIO/R2) — voir la section "Déploiement en production" du README.
+COPY model.pkl customers_indexed.parquet ./
 COPY main.py customer.py database.py preprocessing.py ./
 
 # Port 7860 : convention Hugging Face Spaces (SDK Docker). En local : docker run -p 8000:7860 ...

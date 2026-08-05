@@ -35,7 +35,10 @@ pipeline = seuil_optimal = score = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global pipeline, seuil_optimal, score
-    download_model()  # télécharge depuis MinIO si absent localement (image ne l'embarque plus)
+    # download_model() est un no-op ici : model.pkl est baké dans l'image (Dockerfile),
+    # donc le fichier existe déjà et le téléchargement S3 est sauté. Code laissé en place
+    # pour le jour où on repasse en mode "modèle externalisé" — voir README.
+    download_model()
     pipeline, seuil_optimal, score = joblib.load('model.pkl')
     yield
 

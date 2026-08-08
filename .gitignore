@@ -1,5 +1,7 @@
 df_final_clean.parquet
 customers_indexed.parquet
 predictions.db
+drift_report.html
 .env
 __pycache__/
+.venv-monitoring/

@@ -8,7 +8,7 @@ import os
 import time
 import joblib
 
-from customer import get_customer, log_prediction
+from customer import get_customer, log_prediction, log_error
 from minio_client import download_model
 from monitoring import extraire_inputs_surveilles
 from contextlib import asynccontextmanager
@@ -59,6 +59,10 @@ async def global_exception_handler(_request, exc: Exception):
     else:
         # En prod → message générique, pas de détails
         logging.error(f"Erreur : {exc}")
+        try:
+            log_error(route=str(_request.url.path), message=str(exc))
+        except Exception as e:
+            logging.warning(f"log_error échoué (BDD down probable) : {e}")
         return JSONResponse(
             status_code=500,
             content={"message": "Erreur interne du serveur"}

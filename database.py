@@ -35,6 +35,18 @@ class Prediction(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
+class ErrorEvent(Base):
+    """Erreurs serveur (500) uniquement — pas les 403 (mauvaise clé) ni 422 (requête
+    invalide), qui sont des usages normaux de l'API, pas des pannes du système.
+    Sert au calcul du taux d'erreur (voir analyse_operationnel.py)."""
+    __tablename__ = "error_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    route = Column(String, nullable=False)
+    message = Column(String, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 def get_db():
     db = SessionLocal()
     try:

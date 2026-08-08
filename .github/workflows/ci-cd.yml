@@ -18,7 +18,7 @@ jobs:
 
       - run: pip install -r requirements-dev.txt
 
-      - run: pytest tests/ -v
+      - run: python -m pytest tests/ -v
 
   build-and-push:
     needs: test

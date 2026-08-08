@@ -27,4 +27,6 @@ def test_log_prediction_ne_leve_pas_d_erreur():
         prediction=1,
         probabilite=42.0,
         resultat="Le client aura du mal à rembourser son prêt",
+        inputs={"EXT_SOURCE_2": 0.5},
+        duree_ms=12.3,
     )

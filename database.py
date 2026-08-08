@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 import os
 from datetime import datetime, timezone
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, JSON
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 load_dotenv()
@@ -26,6 +26,24 @@ class Prediction(Base):
     prediction = Column(Integer, nullable=False)
     probabilite = Column(Float, nullable=False)
     resultat = Column(String, nullable=False)
+    # Valeurs des colonnes les plus influentes (monitoring.FEATURES_MONITOREES) au moment
+    # de la prédiction — sert de base à l'analyse de drift (comparaison à la distribution
+    # d'entraînement). JSON plutôt qu'une colonne par feature : évite une migration de
+    # schéma si la liste surveillée change.
+    inputs = Column(JSON, nullable=False)
+    duree_ms = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class ErrorEvent(Base):
+    """Erreurs serveur (500) uniquement — pas les 403 (mauvaise clé) ni 422 (requête
+    invalide), qui sont des usages normaux de l'API, pas des pannes du système.
+    Sert au calcul du taux d'erreur (voir analyse_operationnel.py)."""
+    __tablename__ = "error_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    route = Column(String, nullable=False)
+    message = Column(String, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 

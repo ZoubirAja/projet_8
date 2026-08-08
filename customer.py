@@ -1,5 +1,5 @@
 import pandas as pd
-from database import SessionLocal, Prediction
+from database import SessionLocal, Prediction, ErrorEvent
 
 # Écrit une fois par prepare_parquet.py : mêmes clean_col_names/downcast_floats qu'à
 # l'entraînement (config.py), row groups de 5000 lignes triées par SK_ID_CURR.
@@ -25,7 +25,14 @@ def get_customer(customer_id: int) -> pd.DataFrame | None:
     return result.set_index(ID_COL, drop=False)
 
 
-def log_prediction(customer_id: int, prediction: int, probabilite: float, resultat: str) -> None:
+def log_prediction(
+    customer_id: int,
+    prediction: int,
+    probabilite: float,
+    resultat: str,
+    inputs: dict,
+    duree_ms: float,
+) -> None:
     """Enregistre le résultat d'une prédiction. Une session par appel (courte durée de vie)."""
     db = SessionLocal()
     try:
@@ -34,7 +41,24 @@ def log_prediction(customer_id: int, prediction: int, probabilite: float, result
             prediction=prediction,
             probabilite=probabilite,
             resultat=resultat,
+            inputs=inputs,
+            duree_ms=duree_ms,
         ))
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+def log_error(route: str, message: str) -> None:
+    """Enregistre une erreur serveur (500). Appelé depuis le handler global —
+    doit rester silencieux en cas d'échec (on ne veut pas qu'un souci de BDD
+    masque l'erreur d'origine qu'on est justement en train de logguer)."""
+    db = SessionLocal()
+    try:
+        db.add(ErrorEvent(route=route, message=message))
         db.commit()
     except Exception:
         db.rollback()

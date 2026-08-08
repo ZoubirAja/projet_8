@@ -1,0 +1,11 @@
+# Dépendances du script d'analyse de drift (analyse_drift.py) UNIQUEMENT.
+# Séparé de requirements.txt/requirements-dev.txt : evidently est incompatible avec
+# Python 3.14 (celui utilisé par l'API et le Dockerfile) à cause d'une dépendance à
+# pydantic.v1, supprimée en 3.14. Ce script tourne donc dans un venv Python 3.12 dédié :
+#   uv venv --python 3.12 .venv-monitoring
+#   uv pip install -r requirements-monitoring.txt --python .venv-monitoring
+evidently
+pandas
+pyarrow
+SQLAlchemy
+python-dotenv

@@ -5,10 +5,12 @@ from fastapi.security import APIKeyHeader
 import gradio as gr
 import logging
 import os
+import time
 import joblib
 
 from customer import get_customer, log_prediction
 from minio_client import download_model
+from monitoring import extraire_inputs_surveilles
 from contextlib import asynccontextmanager
 
 load_dotenv()
@@ -85,7 +87,10 @@ def predict_by_id(customer_id: int):
 
 
 def run_prediction(customer_df, customer_id=None):
+    debut = time.perf_counter()
     proba = pipeline.predict_proba(customer_df)[:, 1]
+    duree_ms = (time.perf_counter() - debut) * 1000
+
     prediction = int(proba[0] >= seuil_optimal)
 
     resultat = (
@@ -100,7 +105,9 @@ def run_prediction(customer_df, customer_id=None):
             customer_id=customer_id,
             prediction=prediction,
             probabilite=probabilite,
-            resultat=resultat
+            resultat=resultat,
+            inputs=extraire_inputs_surveilles(customer_df),
+            duree_ms=duree_ms,
         )
     except Exception as e:
         logging.warning(f"log_prediction échoué (BDD down probable) : {e}")

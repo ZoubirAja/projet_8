@@ -25,7 +25,14 @@ def get_customer(customer_id: int) -> pd.DataFrame | None:
     return result.set_index(ID_COL, drop=False)
 
 
-def log_prediction(customer_id: int, prediction: int, probabilite: float, resultat: str) -> None:
+def log_prediction(
+    customer_id: int,
+    prediction: int,
+    probabilite: float,
+    resultat: str,
+    inputs: dict,
+    duree_ms: float,
+) -> None:
     """Enregistre le résultat d'une prédiction. Une session par appel (courte durée de vie)."""
     db = SessionLocal()
     try:
@@ -34,6 +41,8 @@ def log_prediction(customer_id: int, prediction: int, probabilite: float, result
             prediction=prediction,
             probabilite=probabilite,
             resultat=resultat,
+            inputs=inputs,
+            duree_ms=duree_ms,
         ))
         db.commit()
     except Exception:

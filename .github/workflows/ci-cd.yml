@@ -1,0 +1,49 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - run: pip install -r requirements-dev.txt
+
+      - run: pytest tests/ -v
+
+  build-and-push:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # customers_indexed.parquet est gitignoré (275 Mo, généré localement depuis les
+      # données brutes, elles-mêmes non versionnées). En CI on utilise le petit fixture
+      # de test comme substitut, juste pour que `docker build` (qui le COPY) réussisse —
+      # ce n'est PAS l'image de production, qui doit être buildée avec le vrai dataset.
+      - run: cp tests/fixtures/sample_customers.parquet customers_indexed.parquet
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository }}:latest

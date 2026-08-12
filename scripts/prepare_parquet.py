@@ -6,6 +6,11 @@ pour que customer.py puisse lire uniquement le groupe concerné par un id au lie
 de charger les 307 511 lignes en mémoire à chaque démarrage de l'API.
 Reste compressé sur disque (~même taille que l'original) : pas d'explosion d'espace disque.
 """
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "app"))
+
 import pandas as pd
 from preprocessing import clean_col_names, downcast_floats
 

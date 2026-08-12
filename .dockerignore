@@ -3,15 +3,18 @@
 __pycache__/
 *.pyc
 tests/
+notebooks/
+scripts/
 catboost_info/
 
-# Fichiers d'entraînement uniquement, pas nécessaires pour servir l'API
+# Fichiers d'entraînement uniquement (app/config.py, app/model.py), pas nécessaires
+# pour servir l'API — le Dockerfile ne copie que app/, ces deux-là sont exclus même
+# si présents dans le dossier.
 df_final_clean.parquet
 config.py
 model.py
-train.py
-prepare_parquet.py
 requirements-dev.txt
+requirements-monitoring.txt
 
 # Régénérée par l'API au démarrage (database.py), pas besoin de la copier
 predictions.db

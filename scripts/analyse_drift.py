@@ -4,9 +4,13 @@ production (predictions.db).
 
 Tourne dans un venv Python 3.12 dédié : evidently est incompatible avec Python 3.14
 (celui de l'API/Dockerfile) — voir requirements-monitoring.txt.
-    uv run --python .venv-monitoring python analyse_drift.py
+    .venv-monitoring/bin/python3 scripts/analyse_drift.py
 """
 import json
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "app"))
 
 import pandas as pd
 from sqlalchemy import create_engine

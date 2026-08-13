@@ -4,6 +4,7 @@ predictions.db
 drift_report.html
 .env
 __pycache__/
+.ipynb_checkpoints/
 .venv-monitoring/
 .gradio/
 catboost_info/

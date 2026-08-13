@@ -23,8 +23,8 @@ basée sur un modèle CatBoost.
 
 ```
 pip install -r requirements-dev.txt
-python3 prepare_parquet.py   # génère customers_indexed.parquet à partir de df_final_clean.parquet
-uvicorn main:app --reload
+python3 scripts/prepare_parquet.py   # génère customers_indexed.parquet à partir de df_final_clean.parquet
+uvicorn main:app --app-dir app --reload
 ```
 
 ## Tests
@@ -61,7 +61,7 @@ sans reconstruire l'image) :
    (ex. Cloudflare R2, free tier largement suffisant pour un fichier de cette taille) —
    MinIO en local ne fonctionne pas pour un déploiement cloud (non joignable depuis l'extérieur).
 4. Configurer `S3_URL`, `S3_KEY`, `S3_SECRET` comme secrets sur la plateforme de déploiement.
-5. Publier une version du modèle : `python3 -c "from minio_client import upload_model; import joblib; _,_,score = joblib.load('model.pkl'); upload_model(score=score)"` (ou directement via `train.py`).
+5. Publier une version du modèle : `PYTHONPATH=app python3 -c "from minio_client import upload_model; import joblib; _,_,score = joblib.load('model.pkl'); upload_model(score=score)"` (ou directement via `scripts/train.py`).
 
 Aucun changement de code requis au-delà de ça — `download_model()` est déjà appelé
 au démarrage de l'API.

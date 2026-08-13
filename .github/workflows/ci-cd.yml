@@ -42,8 +42,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # ghcr exige un nom d'image tout en minuscules ; github.repository ("ZoubirAja/projet_8")
+      # contient des majuscules, d'où l'échec du tag précédent.
+      - name: Nom d'image en minuscules
+        run: echo "IMAGE=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
       - uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ github.repository }}:latest
+          tags: ${{ env.IMAGE }}:latest

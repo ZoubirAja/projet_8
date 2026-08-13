@@ -5,3 +5,6 @@ drift_report.html
 .env
 __pycache__/
 .venv-monitoring/
+.gradio/
+catboost_info/
+context/

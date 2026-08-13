@@ -1,6 +1,6 @@
 """Analyse opérationnelle : latence anormale + taux d'erreur, à partir de predictions.db
 et error_events. Ne nécessite pas evidently (contrairement à analyse_drift.py) — tourne
-dans l'environnement Python standard du projet : `python3 analyse_operationnel.py`.
+dans l'environnement Python standard du projet : `python3 scripts/analyse_operationnel.py`.
 """
 import pandas as pd
 from sqlalchemy import create_engine

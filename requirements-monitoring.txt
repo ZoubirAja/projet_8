@@ -9,3 +9,6 @@ pandas
 pyarrow
 SQLAlchemy
 python-dotenv
+ipython
+ipykernel
+nbconvert

@@ -52,3 +52,53 @@ def test_predict_type_invalide_est_rejete(client, auth_headers):
     response = client.post("/predict/abc", headers=auth_headers)
 
     assert response.status_code == 422
+
+
+def test_simulate_colonne_inconnue_est_rejetee(client, auth_headers):
+    response = client.post(
+        f"/predict/{KNOWN_CUSTOMER_ID}/simulate",
+        headers=auth_headers,
+        json={"COLONNE_INEXISTANTE": 1},
+    )
+    assert response.status_code == 422
+
+
+def test_simulate_revenu_negatif_est_rejete(client, auth_headers):
+    # Valeur hors plage attendue : un revenu ne peut pas être négatif.
+    response = client.post(
+        f"/predict/{KNOWN_CUSTOMER_ID}/simulate",
+        headers=auth_headers,
+        json={"AMT_INCOME_TOTAL": -1000},
+    )
+    assert response.status_code == 422
+
+
+def test_simulate_age_aberrant_est_rejete(client, auth_headers):
+    # DAYS_BIRTH doit être négatif (client né dans le passé) ; une valeur positive
+    # ("naissance dans le futur", l'équivalent d'un âge négatif) est hors bornes.
+    response = client.post(
+        f"/predict/{KNOWN_CUSTOMER_ID}/simulate",
+        headers=auth_headers,
+        json={"DAYS_BIRTH": 5},
+    )
+    assert response.status_code == 422
+
+
+def test_simulate_type_invalide_est_rejete(client, auth_headers):
+    # Type de donnée incorrect : du texte au lieu d'un nombre.
+    response = client.post(
+        f"/predict/{KNOWN_CUSTOMER_ID}/simulate",
+        headers=auth_headers,
+        json={"AMT_INCOME_TOTAL": "pas un nombre"},
+    )
+    assert response.status_code == 422
+
+
+def test_simulate_valeurs_valides_renvoie_une_prediction(client, auth_headers):
+    response = client.post(
+        f"/predict/{KNOWN_CUSTOMER_ID}/simulate",
+        headers=auth_headers,
+        json={"AMT_INCOME_TOTAL": 200000},
+    )
+    assert response.status_code == 200
+    assert "facteurs_influents" in response.json()

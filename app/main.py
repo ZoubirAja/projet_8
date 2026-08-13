@@ -9,7 +9,7 @@ import time
 import joblib
 
 from customer import get_customer, log_prediction, log_error
-from explain import get_top_influential_features, FEATURES_INTERPRETABLES
+from explain import get_top_influential_features, FEATURES_INTERPRETABLES, valider_bornes
 from minio_client import download_model
 from monitoring import extraire_inputs_surveilles
 from contextlib import asynccontextmanager
@@ -111,6 +111,13 @@ def simulate_prediction(customer_id: int, valeurs: dict[str, float] = Body(...))
         raise HTTPException(
             status_code=422,
             detail=f"Colonnes inconnues : {sorted(colonnes_invalides)}"
+        )
+
+    erreurs_bornes = valider_bornes(valeurs)
+    if erreurs_bornes:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Valeurs hors bornes : {erreurs_bornes}"
         )
 
     for colonne, valeur in valeurs.items():

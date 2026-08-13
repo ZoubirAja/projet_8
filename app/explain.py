@@ -14,6 +14,35 @@ FEATURES_INTERPRETABLES = [
     "CNT_CHILDREN",      # nombre d'enfants à charge
 ]
 
+# Bornes plausibles pour /simulate — évite qu'un revenu négatif, un âge de -5 ans ou
+# 200 enfants ne soient acceptés silencieusement. (min, max), None = pas de borne de ce côté.
+# DAYS_BIRTH/DAYS_EMPLOYED : jours négatifs (convention du dataset) → bornés entre
+# 18 et 100 ans pour l'âge, et "pas dans le futur" pour l'emploi.
+BORNES_SIMULATION = {
+    "AMT_INCOME_TOTAL": (0, None),
+    "AMT_CREDIT": (0, None),
+    "AMT_ANNUITY": (0, None),
+    "AMT_GOODS_PRICE": (0, None),
+    "CNT_CHILDREN": (0, 20),
+    "DAYS_EMPLOYED": (None, 0),
+    "DAYS_BIRTH": (-100 * 365, -18 * 365),
+}
+
+
+def valider_bornes(valeurs: dict) -> list[str]:
+    """Renvoie la liste des violations de bornes (vide si tout est valide)."""
+    erreurs = []
+    for colonne, valeur in valeurs.items():
+        bornes = BORNES_SIMULATION.get(colonne)
+        if bornes is None:
+            continue
+        minimum, maximum = bornes
+        if minimum is not None and valeur < minimum:
+            erreurs.append(f"{colonne}={valeur} : inférieur au minimum ({minimum})")
+        if maximum is not None and valeur > maximum:
+            erreurs.append(f"{colonne}={valeur} : supérieur au maximum ({maximum})")
+    return erreurs
+
 
 def get_top_influential_features(pipeline, customer_df, top_n=3, candidats=None):
     """Renvoie les `top_n` colonnes qui ont le plus pesé sur CETTE prédiction précise.

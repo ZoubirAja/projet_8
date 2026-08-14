@@ -48,11 +48,17 @@ Puis, à chaque analyse :
 .venv-monitoring/bin/python3 scripts/analyse_drift.py
 ```
 - Résumé texte : affiché directement dans le terminal.
-- Rapport détaillé (graphiques) : fichier `drift_report.html` généré à la racine —
-  pas d'URL/serveur, ouvrez-le directement dans un navigateur :
-  ```bash
-  xdg-open drift_report.html
-  ```
+- Résumé clair (titres, description de chaque variable, tableau) : `drift_summary.html` —
+  écrit par nous, à éditer dans `scripts/analyse_drift.py::generer_page_resume` si besoin
+  (regénéré à chaque run, pas de perte).
+- Rapport détaillé (graphiques interactifs) : `drift_report.html` — généré automatiquement
+  par `evidently`, **ne pas éditer à la main** (entièrement réécrit à chaque run).
+
+Les deux s'ouvrent directement dans un navigateur, pas besoin de serveur :
+```bash
+xdg-open drift_summary.html
+xdg-open drift_report.html
+```
 
 ⚠️ Avec peu de prédictions loguées (quelques unités), le rapport affichera du drift
 sur toutes les colonnes — artefact de la petite taille d'échantillon, pas un vrai
@@ -73,4 +79,6 @@ table `error_events`).
 | Fichier | Généré par | Contenu |
 |---|---|---|
 | `predictions.db` | l'API, à chaque prédiction | historique des prédictions + inputs surveillés + durée |
+| `drift_summary.html` | `analyse_drift.py` | résumé clair du drift (titres, descriptions) |
+| `drift_report.html` | `analyse_drift.py` (evidently) | rapport visuel détaillé, généré automatiquement |
 | `drift_report.html` | `analyse_drift.py` | rapport visuel de dérive des données |

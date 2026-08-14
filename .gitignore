@@ -2,6 +2,7 @@ df_final_clean.parquet
 customers_indexed.parquet
 predictions.db
 drift_report.html
+drift_summary.html
 .env
 __pycache__/
 .ipynb_checkpoints/

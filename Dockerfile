@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # model.pkl est baké dans l'image ici pour simplifier le déploiement (pas de dépendance
 # réseau/S3 au démarrage). En production, remplacer par un téléchargement depuis un
 # stockage S3 (MinIO/R2) — voir la section "Déploiement en production" du README.
-COPY model.pkl customers_indexed.parquet ./
+COPY model.pkl model.onnx customers_indexed.parquet ./
 COPY app/ ./app/
 
 # Port 7860 : convention Hugging Face Spaces (SDK Docker). En local : docker run -p 8000:7860 ...

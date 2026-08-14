@@ -7,6 +7,9 @@ import logging
 import os
 import time
 import joblib
+import numpy as np
+import onnxruntime as ort
+from catboost import Pool
 
 from customer import get_customer, log_prediction, log_error
 from explain import get_top_influential_features, FEATURES_INTERPRETABLES, valider_bornes
@@ -29,20 +32,28 @@ def verify_api_key(key: str = Depends(API_KEY_HEADER)):
         )
 
 
-# pipeline : modèle CatBoost entraîné (train.py). seuil_optimal : seuil de décision calculé
-# via le coût métier (10x plus coûteux de rater un défaut que d'avoir une fausse alerte),
-# à utiliser à la place du seuil par défaut (0.5) de pipeline.predict().
-pipeline = seuil_optimal = score = None
+# modele : CatBoost entraîné (train.py), utilisé pour le calcul SHAP (facteurs influents) —
+# ONNX ne fournit pas d'explicabilité, seulement la prédiction. seuil_optimal : seuil de
+# décision calculé via le coût métier (10x plus coûteux de rater un défaut qu'une fausse
+# alerte), à utiliser à la place du seuil par défaut (0.5).
+modele = seuil_optimal = score = None
+# Session ONNX Runtime : utilisée pour la prédiction elle-même — ~85% plus rapide que
+# CatBoost natif sur un DataFrame large (voir notebooks/analyse_performance.ipynb).
+onnx_session = onnx_input_name = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global pipeline, seuil_optimal, score
+    global modele, seuil_optimal, score, onnx_session, onnx_input_name
     # download_model() est un no-op ici : model.pkl est baké dans l'image (Dockerfile),
     # donc le fichier existe déjà et le téléchargement S3 est sauté. Code laissé en place
     # pour le jour où on repasse en mode "modèle externalisé" — voir README.
     download_model()
     pipeline, seuil_optimal, score = joblib.load('model.pkl')
+    modele = pipeline.named_steps['model']
+
+    onnx_session = ort.InferenceSession('model.onnx')
+    onnx_input_name = onnx_session.get_inputs()[0].name
     yield
 
 app = FastAPI(
@@ -128,20 +139,32 @@ def simulate_prediction(customer_id: int, valeurs: dict[str, float] = Body(...))
 
 def run_prediction(customer_df, customer_id=None, log=True):
     debut = time.perf_counter()
-    proba = pipeline.predict_proba(customer_df)[:, 1]
-    duree_ms = (time.perf_counter() - debut) * 1000
 
-    prediction = int(proba[0] >= seuil_optimal)
+    # Prédiction via ONNX Runtime (rapide, pas de conversion DataFrame→Pool coûteuse).
+    arr = customer_df.to_numpy(dtype=np.float32)
+    proba = onnx_session.run(None, {onnx_input_name: arr})[1][0][1]
+
+    # SHAP a besoin du modèle CatBoost natif (ONNX ne fournit pas l'explicabilité) — on
+    # réutilise le même array converti une seule fois, au lieu de repartir du DataFrame
+    # (~11ms économisées par appel, voir notebooks/analyse_performance.ipynb).
+    pool = Pool(arr, feature_names=list(customer_df.columns))
+
+    prediction = int(proba >= seuil_optimal)
 
     resultat = (
         "Le client aura du mal à rembourser son prêt"
         if prediction == 1
         else "N'aura pas de mal à rembourser son prêt"
     )
-    probabilite = round(proba[0] * 100)
+    probabilite = round(proba * 100)
     facteurs_influents = get_top_influential_features(
-        pipeline, customer_df, candidats=FEATURES_INTERPRETABLES
+        modele, customer_df, candidats=FEATURES_INTERPRETABLES, pool=pool
     )
+
+    # Mesuré jusqu'ici (pas avant) : englobe prédiction ONNX + calcul SHAP, le vrai
+    # temps critique de la requête — voir notebooks/analyse_performance.ipynb pour
+    # le détail de ce qui a été mesuré/optimisé.
+    duree_ms = (time.perf_counter() - debut) * 1000
 
     if log:
         try:

@@ -44,7 +44,7 @@ def valider_bornes(valeurs: dict) -> list[str]:
     return erreurs
 
 
-def get_top_influential_features(pipeline, customer_df, top_n=3, candidats=None):
+def get_top_influential_features(modele, customer_df, top_n=3, candidats=None, pool=None):
     """Renvoie les `top_n` colonnes qui ont le plus pesé sur CETTE prédiction précise.
 
     Valeurs de Shapley (calculées nativement par CatBoost), pas l'importance globale
@@ -57,9 +57,15 @@ def get_top_influential_features(pipeline, customer_df, top_n=3, candidats=None)
     FEATURES_INTERPRETABLES) — le SHAP est calculé sur tout le modèle, seul le
     classement final est filtré, donc le top reste bien "le plus influent parmi
     des variables compréhensibles", pas juste les 3 premières concrètes trouvées.
+
+    `pool` : Pool CatBoost déjà construit, à réutiliser tel quel plutôt que d'en
+    reconstruire un depuis `customer_df` (~11ms économisées par appel — voir
+    notebooks/analyse_performance.ipynb). Si absent, un Pool est construit ici,
+    pour rester utilisable indépendamment (notebooks d'analyse, etc.).
     """
-    model = pipeline.named_steps['model']
-    shap_values = model.get_feature_importance(Pool(customer_df), type='ShapValues')[0]
+    if pool is None:
+        pool = Pool(customer_df)
+    shap_values = modele.get_feature_importance(pool, type='ShapValues')[0]
     contributions = shap_values[:-1]  # dernière valeur = biais du modèle, pas une feature
 
     items = list(zip(customer_df.columns, contributions, customer_df.iloc[0]))

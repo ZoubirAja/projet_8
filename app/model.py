@@ -65,4 +65,9 @@ def predict_model(X, y, cout_fn=10, cout_fp=1):
     joblib.dump((pipeline, seuil_optimal, score), 'model.pkl')
     upload_model(score=score)
 
+    # Export ONNX en plus du pickle : l'API l'utilise pour la prédiction (beaucoup plus
+    # rapide que CatBoost natif sur un DataFrame large, voir notebooks/analyse_performance.ipynb).
+    # Le pickle reste nécessaire pour le calcul SHAP (facteurs influents), qu'ONNX ne fournit pas.
+    catboost.save_model('model.onnx', format='onnx')
+
     return score, auc, recall, seuil_optimal

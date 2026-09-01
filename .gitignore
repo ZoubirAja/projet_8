@@ -3,6 +3,7 @@ customers_indexed.parquet
 predictions.db
 drift_report.html
 drift_summary.html
+rapports_drift/
 .env
 __pycache__/
 .ipynb_checkpoints/
@@ -10,3 +11,4 @@ __pycache__/
 .gradio/
 catboost_info/
 context/
+presentation/

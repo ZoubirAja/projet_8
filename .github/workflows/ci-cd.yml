@@ -20,6 +20,11 @@ jobs:
 
       - run: python -m pytest tests/ -v
 
+      # Verrou de qualité : ici (pas dans build-and-push) pour tourner sur chaque PR,
+      # avant le merge — pas seulement après, sur push vers main.
+      - name: Vérifier la qualité du modèle
+        run: python scripts/verifier_qualite_modele.py
+
   build-and-push:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

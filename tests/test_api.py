@@ -4,6 +4,19 @@ from conftest import KNOWN_CUSTOMER_ID, UNKNOWN_CUSTOMER_ID
 def test_health_check(client):
     response = client.get("/")
     assert response.status_code == 200
+    assert response.json()["database"] == "ok"
+
+
+def test_health_check_base_injoignable(client, monkeypatch):
+    # Simule une base cassée : le health check doit le détecter (pas juste dire "ok"
+    # parce que l'API répond) et renvoyer 503, pas 200.
+    import main
+    monkeypatch.setattr(main, "verifier_base_de_donnees", lambda: False)
+
+    response = client.get("/")
+
+    assert response.status_code == 503
+    assert response.json()["database"] == "unreachable"
 
 
 def test_predict_sans_cle_api_est_refuse(client):

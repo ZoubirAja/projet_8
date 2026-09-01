@@ -11,7 +11,10 @@ import numpy as np
 import onnxruntime as ort
 from catboost import Pool
 
+from sqlalchemy import text
+
 from customer import get_customer, log_prediction, log_error
+from database import SessionLocal
 from explain import get_top_influential_features, FEATURES_INTERPRETABLES, valider_bornes
 from minio_client import download_model
 from monitoring import extraire_inputs_surveilles
@@ -62,6 +65,45 @@ app = FastAPI(
 )
 
 
+def verifier_base_de_donnees() -> bool:
+    """Vérifie que la base est réellement joignable — pas juste que l'API répond.
+    Une requête triviale (`SELECT 1`) suffit, pas besoin de lire une vraie table."""
+    try:
+        db = SessionLocal()
+        try:
+            db.execute(text("SELECT 1"))
+        finally:
+            db.close()
+        return True
+    except Exception:
+        return False
+
+
+# Compte les échecs de log_prediction()/log_error() consécutifs : sans ça, une base
+# qui tombe en panne est une erreur "silencieuse" — l'API continue de répondre
+# normalement à l'utilisateur, mais plus rien ne s'enregistre et personne n'est prévenu
+# (juste un logging.warning noyé dans stdout). Remis à zéro dès qu'un log réussit.
+compteur_echecs_logging = 0
+SEUIL_ALERTE_ECHECS = 3
+
+
+def signaler_echec_logging(contexte: str, erreur: Exception):
+    global compteur_echecs_logging
+    compteur_echecs_logging += 1
+    if compteur_echecs_logging >= SEUIL_ALERTE_ECHECS:
+        logging.error(
+            f"⚠️ {compteur_echecs_logging} échecs de logging consécutifs ({contexte}) — "
+            f"le monitoring est probablement cassé silencieusement : {erreur}"
+        )
+    else:
+        logging.warning(f"{contexte} échoué (tentative {compteur_echecs_logging}) : {erreur}")
+
+
+def signaler_succes_logging():
+    global compteur_echecs_logging
+    compteur_echecs_logging = 0
+
+
 # Handler d'erreur global
 @app.exception_handler(Exception)
 async def global_exception_handler(_request, exc: Exception):
@@ -73,8 +115,9 @@ async def global_exception_handler(_request, exc: Exception):
         logging.error(f"Erreur : {exc}")
         try:
             log_error(route=str(_request.url.path), message=str(exc))
+            signaler_succes_logging()
         except Exception as e:
-            logging.warning(f"log_error échoué (BDD down probable) : {e}")
+            signaler_echec_logging("log_error", e)
         return JSONResponse(
             status_code=500,
             content={"message": "Erreur interne du serveur"}
@@ -83,7 +126,14 @@ async def global_exception_handler(_request, exc: Exception):
 
 @app.get("/", include_in_schema=False)
 def home():
-    return {"status": "ok", "model_score_f1": score}
+    db_ok = verifier_base_de_donnees()
+    contenu = {
+        "status": "ok" if db_ok else "degraded",
+        "model_score_f1": score,
+        "database": "ok" if db_ok else "unreachable",
+        "echecs_logging_consecutifs": compteur_echecs_logging,
+    }
+    return JSONResponse(status_code=200 if db_ok else 503, content=contenu)
 
 
 @app.post("/predict/{customer_id}", dependencies=[Depends(verify_api_key)])
@@ -176,8 +226,9 @@ def run_prediction(customer_df, customer_id=None, log=True):
                 inputs=extraire_inputs_surveilles(customer_df),
                 duree_ms=duree_ms,
             )
+            signaler_succes_logging()
         except Exception as e:
-            logging.warning(f"log_prediction échoué (BDD down probable) : {e}")
+            signaler_echec_logging("log_prediction", e)
 
     return {
         "prediction": prediction,

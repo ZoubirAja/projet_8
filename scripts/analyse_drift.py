@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "app"))
 
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 
 from evidently import Report
 from evidently.presets import DataDriftPreset
@@ -23,10 +23,20 @@ from monitoring import FEATURES_MONITOREES, DESCRIPTIONS_FEATURES
 from config import X as X_entrainement  # même preprocessing que le training (config.py)
 
 
-def charger_predictions_production(database_url="sqlite:///./predictions.db"):
-    """Reconstruit un DataFrame des inputs loggués (une colonne par feature surveillée)."""
+def charger_predictions_production(database_url="sqlite:///./predictions.db", depuis=None):
+    """Reconstruit un DataFrame des inputs loggués (une colonne par feature surveillée).
+
+    `depuis` (datetime, optionnel) : ne garde que les prédictions à partir de cette date —
+    pour comparer une fenêtre récente plutôt que tout l'historique accumulé depuis le
+    début (voir drift_mensuel.py, qui l'utilise pour se limiter aux 30 derniers jours).
+    """
     engine = create_engine(database_url)
-    predictions = pd.read_sql("SELECT inputs FROM predictions", engine)
+    requete = "SELECT inputs FROM predictions"
+    params = {}
+    if depuis is not None:
+        requete += " WHERE created_at >= :depuis"
+        params["depuis"] = depuis.isoformat()
+    predictions = pd.read_sql(text(requete), engine, params=params)
     lignes = [
         json.loads(inputs) if isinstance(inputs, str) else inputs
         for inputs in predictions["inputs"]
@@ -34,11 +44,14 @@ def charger_predictions_production(database_url="sqlite:///./predictions.db"):
     return pd.DataFrame(lignes)
 
 
-def generer_page_resume(lignes_resume, n_reference, n_courant):
+def generer_page_resume(lignes_resume, n_reference, n_courant, chemin="drift_summary.html", chemin_detail="drift_report.html"):
     """Page HTML lisible (titres, descriptions des variables, méthodologie) — écrite par
     nous, donc éditable. Contrairement à drift_report.html (bundle généré par evidently,
     réécrit intégralement à chaque run), c'est ici qu'il faut ajouter du contexte/des
     commentaires : ce fichier est régénéré à partir de ce code, pas modifié à la main.
+
+    `chemin`/`chemin_detail` : personnalisables pour archiver un rapport par date
+    (voir drift_mensuel.py) plutôt que d'écraser le même fichier à chaque run.
     """
     lignes_html = "\n".join(
         f"""
@@ -100,12 +113,12 @@ def generer_page_resume(lignes_resume, n_reference, n_courant):
     </tbody>
   </table>
 
-  <p class="note">Rapport détaillé avec graphiques interactifs : <a href="drift_report.html">drift_report.html</a>
+  <p class="note">Rapport détaillé avec graphiques interactifs : <a href="{os.path.basename(chemin_detail)}">{os.path.basename(chemin_detail)}</a>
   (généré automatiquement par evidently, ne pas éditer à la main).</p>
 </body>
 </html>"""
 
-    with open("drift_summary.html", "w", encoding="utf-8") as f:
+    with open(chemin, "w", encoding="utf-8") as f:
         f.write(html)
 
 

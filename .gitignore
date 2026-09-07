@@ -10,3 +10,4 @@ __pycache__/
 .gradio/
 catboost_info/
 context/
+presentation/

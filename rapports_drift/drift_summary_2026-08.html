@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Résumé — analyse de drift</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", Arial, sans-serif; max-width: 900px;
+          margin: 2.5rem auto; padding: 0 1.5rem; color: #17202A; line-height: 1.55; }
+  h1 { font-size: 1.5rem; margin-bottom: 0.2rem; }
+  .meta { color: #56636D; font-size: 0.85rem; margin-bottom: 1.5rem; }
+  .methodo { background: #F2F4F3; border-radius: 8px; padding: 1rem 1.2rem; font-size: 0.92rem; }
+  table { width: 100%; border-collapse: collapse; margin-top: 1.5rem; font-size: 0.88rem; }
+  th { text-align: left; border-bottom: 2px solid #17202A; padding: 0.5rem 0.6rem; }
+  td { padding: 0.55rem 0.6rem; border-bottom: 1px solid #DADFDE; vertical-align: top; }
+  td.desc { color: #56636D; }
+  td.num { font-variant-numeric: tabular-nums; }
+  code { background: #E4F1F1; padding: 0.1em 0.4em; border-radius: 4px; font-size: 0.85em; }
+  tr.drift .badge { background: #A8571C; color: white; }
+  tr.ok .badge { background: #4E7A4A; color: white; }
+  .badge { padding: 0.15em 0.55em; border-radius: 999px; font-size: 0.78rem; font-weight: 600; }
+  .note { font-size: 0.85rem; color: #56636D; margin-top: 1.2rem; }
+</style>
+</head>
+<body>
+  <h1>Analyse de drift — résumé</h1>
+  <p class="meta">Généré le 2026-08-14 17:44 UTC · Référence (entraînement) : 307,511 lignes ·
+  Courant (production loguée) : 510 lignes · 1/10 colonnes en drift</p>
+
+  <div class="methodo">
+    <p><b>Méthode</b> : chaque variable surveillée est comparée entre les données
+    d'entraînement du modèle (référence) et les prédictions réellement loguées par l'API
+    (courant), via <code>evidently</code>. Distance de <b>Wasserstein</b> pour les
+    variables numériques, <b>Jensen-Shannon</b> pour les catégorielles. Une colonne est
+    marquée <b>DRIFT</b> si sa distance dépasse 0.1 (seuil par défaut d'evidently, non
+    recalibré pour ce projet).</p>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Variable</th><th>Description</th><th>Méthode</th><th>Distance</th><th>Seuil</th><th>Statut</th></tr>
+    </thead>
+    <tbody>
+        <tr class="ok">
+          <td><code>EXT_SOURCE_2</code></td>
+          <td class="desc">Score de solvabilité calculé par un organisme externe (bureau de crédit). Normalisé entre 0 et 1 ; la méthode de calcul exacte n'est pas connue de Home Credit.</td>
+          <td>Wasserstein distance (normed)</td>
+          <td class="num">0.046</td>
+          <td class="num">0.1</td>
+          <td><span class="badge">ok</span></td>
+        </tr>
+
+        <tr class="ok">
+          <td><code>EXT_SOURCE_3</code></td>
+          <td class="desc">Idem EXT_SOURCE_2, deuxième organisme externe.</td>
+          <td>Wasserstein distance (normed)</td>
+          <td class="num">0.055</td>
+          <td class="num">0.1</td>
+          <td><span class="badge">ok</span></td>
+        </tr>
+
+        <tr class="ok">
+          <td><code>EXT_SOURCE_1</code></td>
+          <td class="desc">Idem EXT_SOURCE_2, troisième organisme externe.</td>
+          <td>Wasserstein distance (normed)</td>
+          <td class="num">0.059</td>
+          <td class="num">0.1</td>
+          <td><span class="badge">ok</span></td>
+        </tr>
+
+        <tr class="ok">
+          <td><code>DAYS_BIRTH</code></td>
+          <td class="desc">Âge du client, en jours négatifs depuis aujourd'hui (convention du dataset).</td>
+          <td>Wasserstein distance (normed)</td>
+          <td class="num">0.050</td>
+          <td class="num">0.1</td>
+          <td><span class="badge">ok</span></td>
+        </tr>
+
+        <tr class="drift">
+          <td><code>AMT_GOODS_PRICE</code></td>
+          <td class="desc">Prix du bien financé par le crédit.</td>
+          <td>Wasserstein distance (normed)</td>
+          <td class="num">0.100</td>
+          <td class="num">0.1</td>
+          <td><span class="badge">DRIFT</span></td>
+        </tr>
+
+        <tr class="ok">
+          <td><code>CODE_GENDER</code></td>
+          <td class="desc">Genre du client (encodé numériquement).</td>
+          <td>Jensen-Shannon distance</td>
+          <td class="num">0.014</td>
+          <td class="num">0.1</td>
+          <td><span class="badge">ok</span></td>
+        </tr>
+
+        <tr class="ok">
+          <td><code>AMT_ANNUITY</code></td>
+          <td class="desc">Montant de la mensualité de remboursement.</td>
+          <td>Wasserstein distance (normed)</td>
+          <td class="num">0.086</td>
+          <td class="num">0.1</td>
+          <td><span class="badge">ok</span></td>
+        </tr>
+
+        <tr class="ok">
+          <td><code>NAME_EDUCATION_TYPE</code></td>
+          <td class="desc">Niveau d'éducation du client (encodé numériquement).</td>
+          <td>Jensen-Shannon distance</td>
+          <td class="num">0.033</td>
+          <td class="num">0.1</td>
+          <td><span class="badge">ok</span></td>
+        </tr>
+
+        <tr class="ok">
+          <td><code>DAYS_LAST_DUE_1ST_VERSION_max</code></td>
+          <td class="desc">Délai avant l'échéance prévue du crédit précédent le plus récent (agrégé depuis l'historique bureau).</td>
+          <td>Wasserstein distance (normed)</td>
+          <td class="num">0.076</td>
+          <td class="num">0.1</td>
+          <td><span class="badge">ok</span></td>
+        </tr>
+
+        <tr class="ok">
+          <td><code>AMT_CREDIT</code></td>
+          <td class="desc">Montant du crédit demandé.</td>
+          <td>Wasserstein distance (normed)</td>
+          <td class="num">0.092</td>
+          <td class="num">0.1</td>
+          <td><span class="badge">ok</span></td>
+        </tr>
+    </tbody>
+  </table>
+
+  <p class="note">Rapport détaillé avec graphiques interactifs : <a href="drift_report_2026-08.html">drift_report_2026-08.html</a>
+  (généré automatiquement par evidently, ne pas éditer à la main).</p>
+</body>
+</html>

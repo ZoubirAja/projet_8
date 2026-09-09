@@ -10,6 +10,8 @@ import joblib
 import numpy as np
 import onnxruntime as ort
 from catboost import Pool
+from pydantic import BaseModel, Field
+from typing import Literal
 
 from customer import get_customer, log_prediction, log_error
 from explain import get_top_influential_features, FEATURES_INTERPRETABLES, valider_bornes
@@ -20,6 +22,20 @@ from contextlib import asynccontextmanager
 load_dotenv()
 
 DEBUG = os.getenv("DEBUG", "false").lower() == "true"
+
+
+class FacteurInfluent(BaseModel):
+    feature: str
+    contribution: float
+    valeur: int | float  # dépend de la colonne (ex. CNT_CHILDREN=int32, AMT_INCOME_TOTAL=float32)
+
+
+class PredictionResponse(BaseModel):
+    prediction: Literal[0, 1]
+    probabilite_de_defaut: str = Field(pattern=r"^\d+%$")
+    resultat: str
+    facteurs_influents: list[FacteurInfluent]
+
 
 API_KEY_HEADER = APIKeyHeader(name="X-API-Key")
 
@@ -86,7 +102,7 @@ def home():
     return {"status": "ok", "model_score_f1": score}
 
 
-@app.post("/predict/{customer_id}", dependencies=[Depends(verify_api_key)])
+@app.post("/predict/{customer_id}", response_model=PredictionResponse, dependencies=[Depends(verify_api_key)])
 def predict_by_id(customer_id: int):
     customer_df = get_customer(customer_id)
     if customer_df is None:
@@ -102,7 +118,7 @@ def predict_by_id(customer_id: int):
     return run_prediction(customer_df, customer_id)
 
 
-@app.post("/predict/{customer_id}/simulate", dependencies=[Depends(verify_api_key)])
+@app.post("/predict/{customer_id}/simulate", response_model=PredictionResponse, dependencies=[Depends(verify_api_key)])
 def simulate_prediction(customer_id: int, valeurs: dict[str, float] = Body(...)):
     """Rejoue la prédiction d'un client en remplaçant certaines valeurs (ex. les
     facteurs influents renvoyés par /predict/{id}) — pour un "what-if", pas une
@@ -118,6 +134,7 @@ def simulate_prediction(customer_id: int, valeurs: dict[str, float] = Body(...))
     customer_df = customer_df.drop(columns=["TARGET"], errors="ignore").copy()
 
     colonnes_invalides = set(valeurs) - set(customer_df.columns)
+    # return set. Vérifie si il y a des collones non désirables qui se sont ajouter lors de l'envoi du formulaire
     if colonnes_invalides:
         raise HTTPException(
             status_code=422,
@@ -132,7 +149,7 @@ def simulate_prediction(customer_id: int, valeurs: dict[str, float] = Body(...))
         )
 
     for colonne, valeur in valeurs.items():
-        customer_df[colonne] = valeur
+        customer_df[colonne] = valeur # Modification si inplace
 
     return run_prediction(customer_df, customer_id, log=False)
 

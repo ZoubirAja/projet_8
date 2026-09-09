@@ -24,9 +24,7 @@ def test_log_prediction_ne_leve_pas_d_erreur():
     # juste que l'écriture ne plante pas avec des valeurs valides.
     log_prediction(
         customer_id=KNOWN_CUSTOMER_ID,
-        prediction=1,
-        probabilite=42.0,
-        resultat="Le client aura du mal à rembourser son prêt",
+        probabilite=0.42,
         inputs={"EXT_SOURCE_2": 0.5},
         duree_ms=12.3,
     )

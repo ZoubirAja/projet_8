@@ -187,9 +187,7 @@ def run_prediction(customer_df, customer_id=None, log=True):
         try:
             log_prediction(
                 customer_id=customer_id,
-                prediction=prediction,
-                probabilite=probabilite,
-                resultat=resultat,
+                probabilite=float(proba),  # 0-1 (brut) — distinct de `probabilite` (0-100, arrondi pour l'affichage)
                 inputs=extraire_inputs_surveilles(customer_df),
                 duree_ms=duree_ms,
             )

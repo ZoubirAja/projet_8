@@ -23,9 +23,7 @@ class Prediction(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     customer_id = Column(Integer, index=True, nullable=False)
-    prediction = Column(Integer, nullable=False)
-    probabilite = Column(Float, nullable=False)
-    resultat = Column(String, nullable=False)
+    probabilite = Column(Float, nullable=False)  # 0-1 (probabilité brute du modèle, pas un pourcentage)
     # Valeurs des colonnes les plus influentes (monitoring.FEATURES_MONITOREES) au moment
     # de la prédiction — sert de base à l'analyse de drift (comparaison à la distribution
     # d'entraînement). JSON plutôt qu'une colonne par feature : évite une migration de

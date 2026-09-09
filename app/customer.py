@@ -27,9 +27,7 @@ def get_customer(customer_id: int) -> pd.DataFrame | None:
 
 def log_prediction(
     customer_id: int,
-    prediction: int,
     probabilite: float,
-    resultat: str,
     inputs: dict,
     duree_ms: float,
 ) -> None:
@@ -38,9 +36,7 @@ def log_prediction(
     try:
         db.add(Prediction(
             customer_id=customer_id,
-            prediction=prediction,
             probabilite=probabilite,
-            resultat=resultat,
             inputs=inputs,
             duree_ms=duree_ms,
         ))

@@ -1,9 +1,9 @@
-"""Analyse de drift : compare les colonnes surveillées (monitoring.FEATURES_MONITOREES)
-entre la référence (données d'entraînement) et les prédictions récentes loguées en
-production (predictions.db).
+"""Analyse de dérive des données (data drift) : compare les caractéristiques des clients
+récemment évalués par l'API (predictions.db) à celles du jeu d'entraînement, sur les
+variables les plus influentes pour le modèle (monitoring.FEATURES_MONITOREES).
 
-Tourne dans un venv Python 3.12 dédié : evidently est incompatible avec Python 3.14
-(celui de l'API/Dockerfile) — voir requirements-monitoring.txt.
+Nécessite un environnement Python 3.12 dédié (venv .venv-monitoring) : la bibliothèque
+evidently n'est pas compatible avec Python 3.14, utilisée par l'API en production.
     .venv-monitoring/bin/python3 scripts/analyse_drift.py
 """
 import json
@@ -24,7 +24,8 @@ from config import X as X_entrainement  # même preprocessing que le training (c
 
 
 def charger_predictions_production(database_url="sqlite:///./predictions.db"):
-    """Reconstruit un DataFrame des inputs loggués (une colonne par feature surveillée)."""
+    """Reconstruit les caractéristiques des clients récemment évalués par l'API,
+    à partir des événements de scoring enregistrés (une colonne par variable surveillée)."""
     engine = create_engine(database_url)
     predictions = pd.read_sql("SELECT inputs FROM predictions", engine)
     lignes = [
@@ -35,10 +36,11 @@ def charger_predictions_production(database_url="sqlite:///./predictions.db"):
 
 
 def generer_page_resume(lignes_resume, n_reference, n_courant):
-    """Page HTML lisible (titres, descriptions des variables, méthodologie) — écrite par
-    nous, donc éditable. Contrairement à drift_report.html (bundle généré par evidently,
-    réécrit intégralement à chaque run), c'est ici qu'il faut ajouter du contexte/des
-    commentaires : ce fichier est régénéré à partir de ce code, pas modifié à la main.
+    """Génère une page de résumé (titres, descriptions des variables, méthodologie)
+    destinée à un lecteur non technique. Contrairement à drift_report.html (généré
+    intégralement par evidently à chaque exécution), cette page est construite par ce
+    code : toute évolution du contenu doit passer par cette fonction, pas par une
+    édition manuelle du fichier généré.
     """
     lignes_html = "\n".join(
         f"""
@@ -59,7 +61,7 @@ def generer_page_resume(lignes_resume, n_reference, n_courant):
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Résumé — analyse de drift</title>
+<title>Analyse de dérive des données — résumé</title>
 <style>
   body {{ font-family: -apple-system, "Segoe UI", Arial, sans-serif; max-width: 900px;
           margin: 2.5rem auto; padding: 0 1.5rem; color: #17202A; line-height: 1.55; }}
@@ -79,17 +81,18 @@ def generer_page_resume(lignes_resume, n_reference, n_courant):
 </style>
 </head>
 <body>
-  <h1>Analyse de drift — résumé</h1>
-  <p class="meta">Généré le {horodatage} · Référence (entraînement) : {n_reference:,} lignes ·
-  Courant (production loguée) : {n_courant:,} lignes · {n_drift}/{len(lignes_resume)} colonnes en drift</p>
+  <h1>Analyse de dérive des données (data drift)</h1>
+  <p class="meta">Généré le {horodatage} · Référence (entraînement du modèle) : {n_reference:,} clients ·
+  Comparaison (clients récemment évalués par l'API) : {n_courant:,} clients · {n_drift}/{len(lignes_resume)} variables en dérive</p>
 
   <div class="methodo">
-    <p><b>Méthode</b> : chaque variable surveillée est comparée entre les données
-    d'entraînement du modèle (référence) et les prédictions réellement loguées par l'API
-    (courant), via <code>evidently</code>. Distance de <b>Wasserstein</b> pour les
-    variables numériques, <b>Jensen-Shannon</b> pour les catégorielles. Une colonne est
-    marquée <b>DRIFT</b> si sa distance dépasse 0.1 (seuil par défaut d'evidently, non
-    recalibré pour ce projet).</p>
+    <p>Cette page compare, pour chaque variable ayant le plus de poids dans les décisions
+    du modèle, sa distribution lors de l'entraînement à celle observée récemment côté
+    production. La distance de <b>Wasserstein</b> est utilisée pour les variables
+    numériques, celle de <b>Jensen-Shannon</b> pour les variables catégorielles. Une
+    variable est signalée en <b>dérive</b> lorsque sa distance dépasse 0.1 — le seuil
+    par défaut de la bibliothèque <code>evidently</code>, non encore recalibré
+    spécifiquement pour ce cas d'usage.</p>
   </div>
 
   <table>
@@ -100,8 +103,7 @@ def generer_page_resume(lignes_resume, n_reference, n_courant):
     </tbody>
   </table>
 
-  <p class="note">Rapport détaillé avec graphiques interactifs : <a href="drift_report.html">drift_report.html</a>
-  (généré automatiquement par evidently, ne pas éditer à la main).</p>
+  <p class="note">Rapport détaillé avec graphiques interactifs : <a href="drift_report.html">drift_report.html</a>.</p>
 </body>
 </html>"""
 
@@ -114,11 +116,11 @@ def main():
     courant = charger_predictions_production()
 
     if courant.empty:
-        print("Aucune prédiction en production à analyser — lancez d'abord quelques prédictions.")
+        print("Aucun client scoré n'est encore enregistré : une dérive ne peut pas être mesurée sans données récentes.")
         return
 
-    print(f"Référence (entraînement) : {len(reference)} lignes")
-    print(f"Courant (production loguée) : {len(courant)} lignes")
+    print(f"Référence (entraînement du modèle) : {len(reference)} clients")
+    print(f"Comparaison (clients récemment évalués par l'API) : {len(courant)} clients")
 
     rapport = Report(metrics=[DataDriftPreset()])
     resultat = rapport.run(current_data=courant, reference_data=reference)
